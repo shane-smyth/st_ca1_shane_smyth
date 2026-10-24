@@ -1,0 +1,24 @@
+[project]
+name = "ca1"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "shane-smyth", email = "158466904+shane-smyth@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "opencv-python>=5.0.0.93",
+    "pandas>=3.1.0",
+    "scikit-learn>=1.9.1",
+    "tensorflow>=2.21.0",
+]
+
+[project.scripts]
+ca1 = "ca1:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.13.0"]
+build-backend = "uv_build"
