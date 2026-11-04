@@ -37,6 +37,44 @@ def main():
   plot_sample_distribution(num_classes, num_of_each_sign)
   examine_typical_image(X_train, y_train)
 
+  # Image preprocessing
+  X_train, X_val, X_test = apply_preprocessing(X_train, X_val, X_test)
+  examine_random_training_image_after_preprocessing(X_train)
+  # Show sample images after preprocessing
+  num_of_each_sign = show_training_samples(X_train, y_train, class_names, num_classes)
+
+
+
+def examine_random_training_image_after_preprocessing(X_train):
+  plt.imshow(X_train[np.random.randint(0, len(X_train)-1)])
+  plt.axis('off')
+  plt.show()
+  print(X_train.shape)
+
+
+def apply_preprocessing(X_train, X_val, X_test):
+  X_train = np.array(list(map(preprocessing, X_train)))
+  X_val = np.array(list(map(preprocessing, X_val)))
+  X_test = np.array(list(map(preprocessing, X_test)))
+  return X_train, X_val, X_test
+
+
+def preprocessing(img):
+  img = grayscale(img)
+  img = equalize(img)
+  img = img/255
+  return img
+
+
+def grayscale(img):
+  img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+  return img
+
+
+def equalize(img):
+  img = cv2.equalizeHist(img)
+  return img
+
 
 def examine_typical_image(X_train, y_train):
   pre_img = X_train[1222]
