@@ -31,6 +31,27 @@ def main():
   # Check data after selecting specific classes
   print("\nData after selecting specific classes:")
   check_data(X_train, y_train, X_val, y_val, X_test, y_test, class_names)
+  show_training_samples(X_train, y_train, class_names, num_classes)
+
+
+def show_training_samples(X_train, y_train, class_names, num_classes):
+  num_samples = []
+  cols = 5
+  rng = np.random.default_rng(44)
+
+  fig, axes = plt.subplots(num_classes, ncols = cols, figsize=(cols*2, num_classes*2))
+  for i in range(num_classes):
+    x_selected = X_train[y_train == i] # select images belonging to the current class
+    # select 5 random samples from the current class
+    selected_samples = rng.choice(x_selected.shape[0], size=cols, replace=False) 
+    for j, idx in enumerate(selected_samples):
+      axes[i, j].imshow(x_selected[idx])
+      axes[i, j].axis('off')
+      if j == 0: # dispaly class name for the first column of each row
+        axes[i, j].set_title(class_names[i])
+
+  plt.tight_layout()
+  plt.show()
 
 
 def filter_selected_classes(X, y, selected_classes): # https://numpy.org/doc/2.2/reference/generated/numpy.isin.html
