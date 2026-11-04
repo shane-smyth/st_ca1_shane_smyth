@@ -31,7 +31,27 @@ def main():
   # Check data after selecting specific classes
   print("\nData after selecting specific classes:")
   check_data(X_train, y_train, X_val, y_val, X_test, y_test, class_names)
-  show_training_samples(X_train, y_train, class_names, num_classes)
+
+  # Show training samples and their distribution
+  num_of_each_sign = show_training_samples(X_train, y_train, class_names, num_classes)
+  plot_sample_distribution(num_classes, num_of_each_sign)
+  examine_typical_image(X_train, y_train)
+
+
+def examine_typical_image(X_train, y_train):
+  pre_img = X_train[1222]
+  plt.imshow(pre_img)
+  plt.title(f"Label: {y_train[1222]}")
+  plt.show()
+
+
+def plot_sample_distribution(num_classes, num_of_each_sign):
+  plt.figure(figsize=(12,4))
+  plt.bar(range(0, num_classes), num_of_each_sign)
+  plt.title("Distribution of the training set")
+  plt.xlabel("Class number")
+  plt.ylabel("Number of images")
+  plt.show() 
 
 
 def show_training_samples(X_train, y_train, class_names, num_classes):
@@ -49,9 +69,11 @@ def show_training_samples(X_train, y_train, class_names, num_classes):
       axes[i, j].axis('off')
       if j == 0: # dispaly class name for the first column of each row
         axes[i, j].set_title(class_names[i])
+    num_samples.append(len(x_selected))
 
   plt.tight_layout()
   plt.show()
+  return num_samples
 
 
 def filter_selected_classes(X, y, selected_classes): # https://numpy.org/doc/2.2/reference/generated/numpy.isin.html
