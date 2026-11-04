@@ -15,11 +15,51 @@ import pickle
 np.random.seed(44)
 
 def main():
-  num_classes = 10
+  num_classes = 7
 
+  # Load and preprocess CIFAR-10 data
   X_train, y_train, X_test, y_test, class_names = load_cifar10_data()
+
+  # Create validation data
   X_train, X_val, y_train, y_val = create_val_data(X_train, y_train)
+  # Check original data
+  print("Original data:")
   check_data(X_train, y_train, X_val, y_val, X_test, y_test, class_names)
+
+  # Select specific classes from the dataset
+  X_train, y_train, X_val, y_val, X_test, y_test, class_names = select_classes(X_train, y_train, X_val, y_val, X_test, y_test, class_names)
+  # Check data after selecting specific classes
+  print("\nData after selecting specific classes:")
+  check_data(X_train, y_train, X_val, y_val, X_test, y_test, class_names)
+
+
+def filter_selected_classes(X, y, selected_classes): # https://numpy.org/doc/2.2/reference/generated/numpy.isin.html
+  mask = np.isin(y, selected_classes) # keep only the samples whose labels are in the selected classes, using a boolean mask
+  return X[mask], y[mask]
+
+
+def select_classes(X_train, y_train, X_val, y_val, X_test, y_test, class_names):
+  selected_classes= [1,2,3,4,5,7,9]
+
+  X_train, y_train = filter_selected_classes(X_train, y_train, selected_classes)
+  X_val, y_val = filter_selected_classes(X_val, y_val, selected_classes)
+  X_test, y_test = filter_selected_classes(X_test, y_test, selected_classes)
+
+  # Update class names to only include selected classes
+  label_mapping = {
+    original: new
+    for new, original in enumerate(selected_classes)
+  }
+
+  # Replace original labels with new labels according to the mapping
+  y_train = np.array([label_mapping[label] for label in y_train])
+  y_val = np.array([label_mapping[label] for label in y_val])
+  y_test = np.array([label_mapping[label] for label in y_test])
+
+  selected_class_names = [class_names[i] for i in selected_classes]
+
+  return X_train, y_train, X_val, y_val, X_test, y_test, selected_class_names
+
 
 
 def check_data(X_train, y_train, X_val, y_val, X_test, y_test, class_names):
@@ -30,6 +70,13 @@ def check_data(X_train, y_train, X_val, y_val, X_test, y_test, class_names):
   print("Test data shape:", X_test.shape)
   print("Test labels shape:", y_test.shape)
   print("Class names:", class_names)
+
+  assert(X_train.shape[0] == y_train.shape[0]), "The number of training samples does not match the number of labels"
+  assert(X_val.shape[0] == y_val.shape[0]), "The number of validation samples does not match the number of labels"
+  assert(X_test.shape[0] == y_test.shape[0]), "The number of test samples does not match the number of labels"
+  assert(X_train.shape[1:] == (32, 32, 3)), "The dimensions of the training images are not (32, 32, 3)"
+  assert(X_val.shape[1:] == (32, 32, 3)), "The dimensions of the validation images are not (32, 32, 3)"
+  assert(X_test.shape[1:] == (32, 32, 3)), "The dimensions of the test images are not (32, 32, 3)"
 
 
 def create_val_data(X_train, y_train):
