@@ -9,5 +9,6 @@ wheels/
 # Virtual environments
 .venv
 
-# cifar-10 data
+# cifar data
 cifar-10-batches-py/
+cifar-100-python/
