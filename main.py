@@ -37,8 +37,65 @@ def main():
   # Show sample images after preprocessing
   num_of_each_sign = show_training_samples(X_train, y_train, class_names, num_classes)
 
+  X_train, X_val, X_test = reshape_for_cnn(X_train, X_val, X_test)
+  y_train, y_val, y_test = one_hot_encode(num_classes, y_train, y_val, y_test)
+
+  model = modified_model(num_classes)
+  print(model.summary())
+
   datagen = create_data_generator()
   explore_datagen(datagen, X_train, y_train)
+
+  evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datagen)
+
+
+# def test_model_with_image(model, image_to_test):
+#   r = requests.get(image_to_test, stream=True)
+#   img = Image.open(r.raw)
+#   img = np.asarray(img)
+#   img = cv2.resize(img, (32, 32))
+#   img = preprocessing(img)
+#   img = img.reshape(1, 32, 32, 1)
+#   prediction = model.predict(img)
+#   print("Predicted class:", str(np.argmax(prediction)))
+
+
+def evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datagen):
+  datagen.fit(X_train)
+  history = model.fit(datagen.flow(X_train, y_train, batch_size=50), epochs=10, validation_data=(X_val, y_val), verbose=1, shuffle=1)
+  plt.plot(history.history['accuracy'])
+  plt.plot(history.history['val_accuracy'])
+  plt.legend(["training", "validation"])
+  plt.title('Model accuracy')
+  plt.ylabel('Accuracy')
+  plt.xlabel('Epoch')
+  plt.show()
+  plt.plot(history.history['loss'])
+  plt.plot(history.history['val_loss'])
+  plt.legend(["training", "validation"])
+  plt.title('Model loss')
+  plt.ylabel('Loss')
+  plt.xlabel('Epoch')
+  plt.show()
+  score = model.evaluate(X_test, y_test, verbose=1)
+  print("Test Score:", score[0])
+  print("Test Accuracy:", score[1])
+
+
+def modified_model(num_classes):
+  model = Sequential()
+  model.add(Conv2D(60, (5, 5), input_shape=(32, 32, 1), activation="relu"))
+  model.add(Conv2D(60, (5, 5), input_shape=(32, 32, 1), activation="relu"))
+  model.add(MaxPooling2D(pool_size=(2, 2)))
+  model.add(Conv2D(30, (3, 3), activation="relu"))
+  model.add(Conv2D(30, (3, 3), activation="relu"))
+  model.add(MaxPooling2D(pool_size=(2, 2)))
+  model.add(Flatten())
+  model.add(Dense(500, activation="relu"))
+  model.add(Dropout(0.5))
+  model.add(Dense(num_classes, activation="softmax"))
+  model.compile(Adam(learning_rate=0.001), loss="categorical_crossentropy", metrics=["accuracy"])
+  return model
 
 
 def explore_datagen(datagen, X_train, y_train):
@@ -71,6 +128,20 @@ def examine_random_training_image_after_preprocessing(X_train):
   print(X_train.shape)
 
 
+def reshape_for_cnn(X_train, X_val, X_test):
+  X_train = X_train.reshape(-1, 32, 32, 1)
+  X_val = X_val.reshape(-1, 32, 32, 1)
+  X_test = X_test.reshape(-1, 32, 32, 1)
+  return X_train, X_val, X_test
+
+
+def one_hot_encode(num_classes,y_train, y_val, y_test):
+  y_train = to_categorical(y_train, num_classes)
+  y_val = to_categorical(y_val, num_classes)
+  y_test = to_categorical(y_test, num_classes)
+  return y_train, y_val, y_test
+
+
 def apply_preprocessing(X_train, X_val, X_test):
   X_train = np.array(list(map(preprocessing, X_train)))
   X_val = np.array(list(map(preprocessing, X_val)))
@@ -86,7 +157,7 @@ def preprocessing(img):
 
 
 def grayscale(img):
-  img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+  img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
   return img
 
 

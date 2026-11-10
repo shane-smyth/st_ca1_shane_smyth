@@ -1,6 +1,7 @@
 {
   "conventionalCommits.scopes": [
     "data_check",
-    "cifar10"
+    "cifar10",
+    "model"
   ]
 }
