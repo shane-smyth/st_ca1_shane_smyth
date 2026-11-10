@@ -4,8 +4,9 @@ import tensorflow.keras
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout
+from tensorflow.keras.layers import BatchNormalization, Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Input
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import os
@@ -62,7 +63,20 @@ def main():
 
 def evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datagen):
   datagen.fit(X_train)
-  history = model.fit(datagen.flow(X_train, y_train, batch_size=50), epochs=10, validation_data=(X_val, y_val), verbose=1, shuffle=1)
+
+  callbacks = [
+    EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True),
+    ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6)
+  ]
+
+  history = model.fit(
+    datagen.flow(X_train, y_train, batch_size=64), 
+    epochs=60, 
+    validation_data=(X_val, y_val), 
+    verbose=1, 
+    shuffle=1,
+    callbacks=callbacks
+  )
   plt.plot(history.history['accuracy'])
   plt.plot(history.history['val_accuracy'])
   plt.legend(["training", "validation"])
@@ -83,17 +97,36 @@ def evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datage
 
 
 def modified_model(num_classes):
-  model = Sequential()
-  model.add(Conv2D(60, (5, 5), input_shape=(32, 32, 1), activation="relu"))
-  model.add(Conv2D(60, (5, 5), input_shape=(32, 32, 1), activation="relu"))
-  model.add(MaxPooling2D(pool_size=(2, 2)))
-  model.add(Conv2D(30, (3, 3), activation="relu"))
-  model.add(Conv2D(30, (3, 3), activation="relu"))
-  model.add(MaxPooling2D(pool_size=(2, 2)))
-  model.add(Flatten())
-  model.add(Dense(500, activation="relu"))
-  model.add(Dropout(0.5))
-  model.add(Dense(num_classes, activation="softmax"))
+  model = Sequential([
+    Input(shape=(32, 32, 1)),
+
+    Conv2D(32, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    Conv2D(32, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.25),
+
+    Conv2D(64, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    Conv2D(64, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.3),
+
+    Conv2D(128, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    Conv2D(128, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.4),
+
+    Flatten(),
+    Dense(256, activation="relu"),
+    BatchNormalization(),
+    Dropout(0.5),
+    Dense(num_classes, activation="softmax"),
+  ])
   model.compile(Adam(learning_rate=0.001), loss="categorical_crossentropy", metrics=["accuracy"])
   return model
 
@@ -116,7 +149,8 @@ def create_data_generator():
       width_shift_range=0.1,
       height_shift_range=0.1,
       zoom_range=0.2,
-      shear_range=0.1
+      shear_range=0.1,
+      horizontal_flip=True
   )
   return datagen
 
