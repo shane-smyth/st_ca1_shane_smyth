@@ -1,18 +1,22 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report
+from sklearn.utils import compute_class_weight
 import tensorflow.keras
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.layers import BatchNormalization, Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Input
+from tensorflow.keras.layers import BatchNormalization, Dense, Conv2D, GlobalAveragePooling2D, MaxPooling2D, Flatten, Dropout, Input
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import os
 import cv2
 from PIL import Image
 import pickle
+import json
 
 np.random.seed(44)
 
@@ -20,6 +24,10 @@ def main():
   # Load and preprocess CIFAR-10 data
   X_train, y_train, X_test, y_test, class_names = load_combined_data()
   num_classes = len(class_names)
+
+  # save class names to a JSON file for later use
+  with open("class_names.json", "w") as f:
+    json.dump(class_names, f)
 
   # Create validation data
   X_train, X_val, y_train, y_val = create_val_data(X_train, y_train)
@@ -66,7 +74,7 @@ def evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datage
 
   callbacks = [
     EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True),
-    ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6)
+    ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-5)
   ]
 
   history = model.fit(
@@ -77,6 +85,8 @@ def evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datage
     shuffle=1,
     callbacks=callbacks
   )
+  model.save("cifar_model.keras")
+
   plt.plot(history.history['accuracy'])
   plt.plot(history.history['val_accuracy'])
   plt.legend(["training", "validation"])
@@ -148,8 +158,7 @@ def create_data_generator():
       rotation_range=10,
       width_shift_range=0.1,
       height_shift_range=0.1,
-      zoom_range=0.2,
-      shear_range=0.1,
+      zoom_range=0.1,
       horizontal_flip=True
   )
   return datagen
