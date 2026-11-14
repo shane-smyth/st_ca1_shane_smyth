@@ -1,17 +1,22 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report
+from sklearn.utils import compute_class_weight
 import tensorflow.keras
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout
+from tensorflow.keras.layers import BatchNormalization, Dense, Conv2D, GlobalAveragePooling2D, MaxPooling2D, Flatten, Dropout, Input
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import os
 import cv2
 from PIL import Image
 import pickle
+import json
 
 np.random.seed(44)
 
@@ -19,6 +24,10 @@ def main():
   # Load and preprocess CIFAR-10 data
   X_train, y_train, X_test, y_test, class_names = load_combined_data()
   num_classes = len(class_names)
+
+  # save class names to a JSON file for later use
+  with open("class_names.json", "w") as f:
+    json.dump(class_names, f)
 
   # Create validation data
   X_train, X_val, y_train, y_val = create_val_data(X_train, y_train)
@@ -37,8 +46,99 @@ def main():
   # Show sample images after preprocessing
   num_of_each_sign = show_training_samples(X_train, y_train, class_names, num_classes)
 
+  X_train, X_val, X_test = reshape_for_cnn(X_train, X_val, X_test)
+  y_train, y_val, y_test = one_hot_encode(num_classes, y_train, y_val, y_test)
+
+  model = modified_model(num_classes)
+  print(model.summary())
+
   datagen = create_data_generator()
   explore_datagen(datagen, X_train, y_train)
+
+  evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datagen)
+
+
+# def test_model_with_image(model, image_to_test):
+#   r = requests.get(image_to_test, stream=True)
+#   img = Image.open(r.raw)
+#   img = np.asarray(img)
+#   img = cv2.resize(img, (32, 32))
+#   img = preprocessing(img)
+#   img = img.reshape(1, 32, 32, 1)
+#   prediction = model.predict(img)
+#   print("Predicted class:", str(np.argmax(prediction)))
+
+
+def evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datagen):
+  datagen.fit(X_train)
+
+  callbacks = [
+    EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True),
+    ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-5)
+  ]
+
+  history = model.fit(
+    datagen.flow(X_train, y_train, batch_size=64), 
+    epochs=60, 
+    validation_data=(X_val, y_val), 
+    verbose=1, 
+    shuffle=1,
+    callbacks=callbacks
+  )
+  model.save("cifar_model.keras")
+
+  plt.plot(history.history['accuracy'])
+  plt.plot(history.history['val_accuracy'])
+  plt.legend(["training", "validation"])
+  plt.title('Model accuracy')
+  plt.ylabel('Accuracy')
+  plt.xlabel('Epoch')
+  plt.show()
+  plt.plot(history.history['loss'])
+  plt.plot(history.history['val_loss'])
+  plt.legend(["training", "validation"])
+  plt.title('Model loss')
+  plt.ylabel('Loss')
+  plt.xlabel('Epoch')
+  plt.show()
+  score = model.evaluate(X_test, y_test, verbose=1)
+  print("Test Score:", score[0])
+  print("Test Accuracy:", score[1])
+
+
+def modified_model(num_classes):
+  model = Sequential([
+    Input(shape=(32, 32, 1)),
+
+    Conv2D(32, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    Conv2D(32, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.25),
+
+    Conv2D(64, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    Conv2D(64, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.3),
+
+    Conv2D(128, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    Conv2D(128, (3, 3), padding="same", activation="relu"),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+    Dropout(0.4),
+
+    Flatten(),
+    Dense(256, activation="relu"),
+    BatchNormalization(),
+    Dropout(0.5),
+    Dense(num_classes, activation="softmax"),
+  ])
+  model.compile(Adam(learning_rate=0.001), loss="categorical_crossentropy", metrics=["accuracy"])
+  return model
 
 
 def explore_datagen(datagen, X_train, y_train):
@@ -58,8 +158,8 @@ def create_data_generator():
       rotation_range=10,
       width_shift_range=0.1,
       height_shift_range=0.1,
-      zoom_range=0.2,
-      shear_range=0.1
+      zoom_range=0.1,
+      horizontal_flip=True
   )
   return datagen
 
@@ -69,6 +169,20 @@ def examine_random_training_image_after_preprocessing(X_train):
   plt.axis('off')
   plt.show()
   print(X_train.shape)
+
+
+def reshape_for_cnn(X_train, X_val, X_test):
+  X_train = X_train.reshape(-1, 32, 32, 1)
+  X_val = X_val.reshape(-1, 32, 32, 1)
+  X_test = X_test.reshape(-1, 32, 32, 1)
+  return X_train, X_val, X_test
+
+
+def one_hot_encode(num_classes,y_train, y_val, y_test):
+  y_train = to_categorical(y_train, num_classes)
+  y_val = to_categorical(y_val, num_classes)
+  y_test = to_categorical(y_test, num_classes)
+  return y_train, y_val, y_test
 
 
 def apply_preprocessing(X_train, X_val, X_test):
@@ -86,7 +200,7 @@ def preprocessing(img):
 
 
 def grayscale(img):
-  img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+  img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
   return img
 
 
