@@ -58,17 +58,6 @@ def main():
   evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datagen)
 
 
-# def test_model_with_image(model, image_to_test):
-#   r = requests.get(image_to_test, stream=True)
-#   img = Image.open(r.raw)
-#   img = np.asarray(img)
-#   img = cv2.resize(img, (32, 32))
-#   img = preprocessing(img)
-#   img = img.reshape(1, 32, 32, 1)
-#   prediction = model.predict(img)
-#   print("Predicted class:", str(np.argmax(prediction)))
-
-
 def evaluate_model(model, X_train, y_train, X_val, y_val, X_test, y_test, datagen):
   datagen.fit(X_train)
 
@@ -275,7 +264,6 @@ def select_classes(X_train, y_train, X_val, y_val, X_test, y_test, class_names):
   return X_train, y_train, X_val, y_val, X_test, y_test, selected_class_names
 
 
-
 def check_data(X_train, y_train, X_val, y_val, X_test, y_test, class_names):
   print("Training data shape:", X_train.shape)
   print("Training labels shape:", y_train.shape)
@@ -309,7 +297,6 @@ def unpickle(file):
 
 
 def select_and_remap(X, y, groups, offset=0):
-  # groups: list of (new_name, [original indices]); several originals can share one new label
   label_mapping = {}
   for new, (_, originals) in enumerate(groups, start=offset):
     for original in originals:
@@ -331,7 +318,7 @@ def load_combined_data(): # https://claude.ai/share/1577e5f3-7a02-4538-a5ce-40ed
   groups10 = [(names10[i], [i]) for i in selected10]
 
   def idx(*names):
-    return [names100.index(n) for n in names]   # <- names100, not names10
+    return [names100.index(n) for n in names]
 
   groups100 = [(n, idx(n)) for n in [
     "cattle", "fox", "baby", "boy", "girl", "man", "woman", "rabbit",
